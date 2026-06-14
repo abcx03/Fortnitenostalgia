@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FN — Fortnite Nostalgia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Saira+Condensed:wght@800&family=Saira:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #08060F;
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow-x: hidden;
+      color: #fff;
+    }
+
+    /* ── Loader ─────────────────────────────────────────────── */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: #08060F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease;
+    }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    .loader-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.2; transform: scale(0.8); }
+      50%       { opacity: 1;   transform: scale(1.2); }
+    }
+
+    /* ── Scroll root ────────────────────────────────────────── */
+    #scroll-root { position: relative; width: 100%; }
+
+    /* ── Single sticky stage ─────────────────────────────────── */
+    #stage {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Rocket stage (slides up over canvas) ───────────────── */
+    #rocket-stage {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      overflow: hidden;
+      will-change: transform;
+      background:
+        radial-gradient(135% 120% at 6% 104%,
+          rgba(248,251,255,.98) 0%, rgba(196,200,250,.6) 9%,
+          rgba(140,98,206,.42) 20%, rgba(90,52,150,.14) 38%,
+          rgba(46,24,116,0) 56%),
+        linear-gradient(124deg,
+          #6b46b0 0%, #56309c 26%, #3d2189 52%, #2a1680 74%, #20127a 100%);
+    }
+
+    /* Rocket animation keyframes */
+    @keyframes fnFloat  {
+      0%   { transform: translate3d(0,0,0) rotate(0deg); }
+      50%  { transform: translate3d(0,-1.2%,0) rotate(0.35deg); }
+      100% { transform: translate3d(0,0,0) rotate(0deg); }
+    }
+    @keyframes fnRiseIn {
+      0%   { opacity: 0; transform: translate3d(0,46px,0); filter: blur(8px); }
+      100% { opacity: 1; transform: translate3d(0,0,0);    filter: blur(0);   }
+    }
+    @keyframes fnCueBob {
+      0%,100% { transform: translateY(0);   opacity: .85; }
+      50%     { transform: translateY(7px); opacity: .35; }
+    }
+    @keyframes fnTwinkle {
+      0%,100% { opacity: .85; } 50% { opacity: .55; }
+    }
+    @keyframes fnFlameA {
+      0%,100% { transform: scaleY(1);    opacity: 1;   }
+      50%     { transform: scaleY(1.16); opacity: .82; }
+    }
+    @keyframes fnFlameB {
+      0%,100% { transform: scaleY(1.05); opacity: .9; }
+      50%     { transform: scaleY(0.9);  opacity: 1;  }
+    }
+    @keyframes fnEngine {
+      0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: .85; }
+      50%     { transform: translate(-50%,-50%) scale(1.22); opacity: 1;   }
+    }
+
+    /* ── Canvas layer (always visible, rocket stage slides over it) ── */
+    #main-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* ── End card ────────────────────────────────────────────── */
+    #end-card {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: #08060F;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+    }
+    #end-card.visible { opacity: 1; pointer-events: auto; }
+    #end-card .end-title {
+      font-family: 'Saira Condensed', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.5rem, 8vw, 6rem);
+      letter-spacing: -0.01em;
+      line-height: 1.0;
+    }
+    #end-card .end-sub {
+      margin-top: 0.6rem;
+      font-family: 'Saira', sans-serif;
+      font-size: clamp(0.875rem, 2vw, 1.125rem);
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+    }
+    #end-copy-row {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      margin-top: 2rem;
+      width: min(90vw, 520px);
+    }
+    #end-copy-input {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.75);
+      font-family: 'Saira', sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 14px;
+      outline: none;
+      cursor: text;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #end-copy-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Saira', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #end-copy-btn:hover { background: rgba(255,255,255,0.22); }
+    #end-copy-btn.copied { background: rgba(80,220,140,0.25); border-color: rgba(80,220,140,0.5); }
+
+    /* ── Settle UI (cue + caption box) ─────────────────────── */
+    #settle-cue {
+      position: absolute;
+      left: 0; right: 0; bottom: 32px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 11px;
+      pointer-events: none;
+      opacity: 0;
+      will-change: opacity;
+    }
+    #settle-cue-label {
+      font-family: 'Saira', sans-serif;
+      font-weight: 400;
+      color: rgba(255,255,255,.65);
+      font-size: 12px;
+      letter-spacing: .34em;
+      text-transform: uppercase;
+      padding-left: .34em;
+    }
+    #settle-cue-track {
+      width: 22px; height: 34px;
+      border: 1.5px solid rgba(255,255,255,.35);
+      border-radius: 12px;
+      position: relative;
+    }
+    #settle-cue-dot {
+      position: absolute;
+      left: 50%; top: 7px;
+      width: 3px; height: 7px;
+      margin-left: -1.5px;
+      border-radius: 2px;
+      background: rgba(255,255,255,.9);
+      animation: fnCueBob 1.7s ease-in-out infinite;
+    }
+
+    #settle-box {
+      position: absolute;
+      bottom: 28px; right: 28px;
+      z-index: 10;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(20px) saturate(1.6);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 18px;
+      padding: 16px 20px 14px 16px;
+      min-width: 200px; max-width: 280px;
+      pointer-events: none;
+      opacity: 0;
+      will-change: opacity;
+    }
+    #settle-box-title {
+      font-family: 'Saira Condensed', sans-serif;
+      font-weight: 800;
+      font-size: clamp(20px, 2.8vw, 28px);
+      color: #fff;
+      letter-spacing: .01em;
+      line-height: 1.0;
+    }
+    #settle-box-sub {
+      font-family: 'Saira', sans-serif;
+      font-weight: 300;
+      font-size: clamp(11px, 1.1vw, 13px);
+      color: rgba(255,255,255,.55);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+    #settle-box-footer {
+      margin-top: 13px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #settle-box-footer a { pointer-events: auto; }
+    #settle-box-footer span {
+      font-family: 'Saira', sans-serif;
+      font-weight: 400;
+      font-size: 11px;
+      color: rgba(255,255,255,.38);
+      letter-spacing: .06em;
+    }
+
+    /* ── Relive card (centered lift, slides up like rocket stage) ── */
+    #relive-box {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: rgba(8,6,15,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      will-change: transform, opacity;
+    }
+    #relive-box-title, #relive-box-2 > p {
+      font-family: 'Saira Condensed', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.4rem, 7vw, 6rem);
+      color: #fff;
+      letter-spacing: -0.01em;
+      line-height: 1.0;
+    }
+    /* ── Second relive card (moments) ───────────────────────── */
+    #relive-box-2 {
+      position: absolute;
+      inset: 0;
+      z-index: 11;
+      background: rgba(8,6,15,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      will-change: transform, opacity;
+    }
+    /* ── Video section 2 (moments carousel) ─────────────────── */
+    #video-section-2 {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      background: #000;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #video-track-2 {
+      display: flex;
+      align-items: center;
+      gap: 5vw;
+      will-change: transform;
+      padding-left:  calc((100vw - min(78vw, 900px)) / 2);
+      padding-right: calc((100vw - min(78vw, 900px)) / 2);
+    }
+    /* ── Video section (horizontal carousel, revealed by relive lift) ── */
+    #video-section {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      background: #000;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #video-track {
+      display: flex;
+      align-items: center;
+      gap: 5vw;
+      will-change: transform;
+      /* left padding centres the first video */
+      padding-left: calc((100vw - min(78vw, 900px)) / 2);
+      padding-right: calc((100vw - min(78vw, 900px)) / 2);
+    }
+    .video-slot {
+      flex-shrink: 0;
+      width: min(78vw, 900px);
+      position: relative;
+    }
+    .video-slot video {
+      width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      border-radius: 14px;
+      display: block;
+      background: #000;
+    }
+    .video-slot-label {
+      margin-top: 14px;
+      text-align: center;
+    }
+    .video-slot-label .vtitle {
+      font-family: 'Saira Condensed', sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.1rem, 2.5vw, 1.8rem);
+      color: #fff;
+      letter-spacing: .01em;
+    }
+    .video-slot-label .vsub {
+      font-family: 'Saira', sans-serif;
+      font-weight: 300;
+      font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+      color: rgba(255,255,255,.45);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loader-dot { animation: none; opacity: 1; }
+      #settle-cue-dot { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loader"><div class="loader-dot"></div></div>
+
+  <div id="end-card">
+    <p class="end-title">Fortnite Nostalgia</p>
+    <div id="end-copy-row">
+      <input id="end-copy-input" type="text" readonly value="<!-- PLACEHOLDER: add your text in end-card-text.txt -->">
+      <button id="end-copy-btn" onclick="(function(){const i=document.getElementById('end-copy-input');i.select();navigator.clipboard.writeText(i.value).catch(()=>{document.execCommand('copy')});const b=document.getElementById('end-copy-btn');b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied')},1800)})()">Copy</button>
+    </div>
+  </div>
+
+  <div id="scroll-root">
+    <div id="stage">
+
+      <!-- ── Rocket intro ──────────────────────────────────── -->
+      <div id="rocket-stage">
+
+        <!-- Stars -->
+        <div id="r-stars" style="
+          position:absolute; left:-20%; top:-20%; width:140%; height:140%; z-index:2;
+          background:url('./assets/stars.png') center/cover no-repeat;
+          animation:fnTwinkle 7s ease-in-out infinite; will-change:transform;"></div>
+
+        <!-- Engine flare glow -->
+        <div id="r-flare" style="
+          position:absolute; inset:0; z-index:3;
+          mix-blend-mode:screen; transform-origin:9% 96%; will-change:transform,opacity;
+          background:
+            radial-gradient(34% 30% at 9% 96%, rgba(255,255,255,.95) 0%, rgba(200,220,255,.55) 26%, rgba(150,150,240,.22) 48%, rgba(120,90,210,0) 72%),
+            radial-gradient(22% 20% at 5% 100%, rgba(255,255,255,1) 0%, rgba(220,235,255,.6) 30%, rgba(180,200,255,0) 64%);"></div>
+
+        <!-- Star streaks -->
+        <div id="r-streaks" style="
+          position:absolute; left:-10%; top:-60%; width:120%; height:220%; z-index:4;
+          background:url('./assets/streaks.png') center/cover no-repeat;
+          opacity:0; mix-blend-mode:screen; will-change:transform,opacity;"></div>
+
+        <!-- Rocket + plume -->
+        <div id="r-rocket" style="position:absolute;inset:0;z-index:5;will-change:transform,opacity;">
+          <div style="position:absolute;left:40%;top:72%;width:144vmin;transform:translate(-50%,-50%);">
+            <div style="position:relative;animation:fnFloat 9s ease-in-out infinite;">
+
+              <!-- Exhaust plume -->
+              <div id="r-tail" style="
+                position:absolute;left:13.5%;top:80%;width:0;height:0;opacity:0;
+                transform-origin:0% 50%;transform:rotate(153deg);will-change:transform,opacity;">
+                <div style="position:absolute;left:0;top:0;width:123vmin;height:51vmin;margin-top:-25.5vmin;
+                  clip-path:polygon(0% 28%,0% 72%,100% 50%);filter:blur(22px);mix-blend-mode:screen;
+                  animation:fnFlameA .9s ease-in-out infinite;
+                  background:linear-gradient(90deg,rgba(150,198,255,.55) 0%,rgba(120,168,252,.24) 30%,rgba(86,128,228,0) 76%);"></div>
+                <div style="position:absolute;left:0;top:0;width:111vmin;height:30vmin;margin-top:-15vmin;
+                  clip-path:polygon(0% 22%,0% 78%,100% 50%);filter:blur(12px);mix-blend-mode:screen;
+                  animation:fnFlameB .7s ease-in-out infinite;
+                  background:linear-gradient(90deg,rgba(228,242,255,.88) 0%,rgba(190,222,255,.42) 28%,rgba(160,200,255,0) 72%);"></div>
+                <div style="position:absolute;left:0;top:0;width:93vmin;height:12vmin;margin-top:-6vmin;
+                  clip-path:polygon(0% 26%,0% 74%,100% 50%);filter:blur(5px);mix-blend-mode:screen;
+                  animation:fnFlameA .55s ease-in-out infinite;
+                  background:linear-gradient(90deg,rgba(255,255,255,.96) 0%,rgba(236,246,255,.62) 22%,rgba(212,232,255,0) 62%);"></div>
+              </div>
+
+              <!-- Engine glow -->
+              <div id="r-engine" style="
+                position:absolute;left:13.5%;top:80%;width:30vmin;height:30vmin;
+                transform:translate(-50%,-50%);filter:blur(4px);mix-blend-mode:screen;
+                animation:fnEngine .8s ease-in-out infinite;
+                background:radial-gradient(circle,rgba(255,255,255,.95) 0%,rgba(186,214,255,.6) 28%,rgba(120,162,255,0) 70%);"></div>
+
+              <!-- Rocket sprite -->
+              <img src="./assets/rocket.png" alt="" style="
+                position:relative;z-index:1;display:block;width:100%;height:auto;
+                filter:drop-shadow(0 0 26px rgba(150,120,230,.35));">
+            </div>
+          </div>
+        </div>
+
+        <!-- Title -->
+        <div id="r-type" style="
+          position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;
+          align-items:center;padding-top:11vh;pointer-events:none;will-change:transform,opacity;">
+          <div style="opacity:0;animation:fnRiseIn 1.25s cubic-bezier(.16,1,.3,1) .15s both;
+            font-family:'Saira Condensed',sans-serif;font-weight:800;color:#f4f1ff;
+            font-size:clamp(140px,27vw,420px);line-height:.82;letter-spacing:.01em;
+            text-shadow:0 0 60px rgba(150,140,255,.45),0 0 18px rgba(255,255,255,.25);">FN</div>
+          <div style="opacity:0;animation:fnRiseIn 1.25s cubic-bezier(.16,1,.3,1) .34s both;
+            margin-top:clamp(10px,1.6vh,26px);font-family:'Saira',sans-serif;font-weight:300;
+            color:rgba(232,228,255,.86);font-size:clamp(13px,1.5vw,21px);
+            letter-spacing:.42em;text-transform:uppercase;padding-left:.42em;">Tokenized Nostalgia</div>
+        </div>
+
+        <!-- Scroll cue -->
+        <div id="r-cue" style="
+          position:absolute;left:0;right:0;bottom:34px;z-index:11;
+          display:flex;flex-direction:column;align-items:center;gap:11px;
+          pointer-events:none;opacity:0;animation:fnRiseIn 1s cubic-bezier(.16,1,.3,1) .9s both;">
+          <div style="font-family:'Saira',sans-serif;font-weight:400;color:rgba(226,222,252,.72);
+            font-size:12px;letter-spacing:.34em;text-transform:uppercase;padding-left:.34em;">Scroll to launch</div>
+          <div style="width:22px;height:34px;border:1.5px solid rgba(226,222,252,.42);border-radius:12px;position:relative;">
+            <div style="position:absolute;left:50%;top:7px;width:3px;height:7px;margin-left:-1.5px;
+              border-radius:2px;background:rgba(238,234,255,.9);animation:fnCueBob 1.7s ease-in-out infinite;"></div>
+          </div>
+        </div>
+
+      </div><!-- /#rocket-stage -->
+
+      <!-- ── Canvas (frame sequence, fades in over rocket) ───── -->
+      <canvas id="main-canvas"></canvas>
+
+      <!-- ── Settle photo overlay (high-res, fades in at chapter end) ── -->
+      <img id="settle-img" alt="" style="
+        position:absolute;inset:0;width:100%;height:100%;
+        object-fit:cover;z-index:3;opacity:0;pointer-events:none;
+        will-change:opacity;">
+
+      <!-- ── Scroll cue (shows during settle holds) ────────────── -->
+      <div id="settle-cue">
+        <div id="settle-cue-label">Keep scrolling</div>
+        <div id="settle-cue-track"><div id="settle-cue-dot"></div></div>
+      </div>
+
+      <!-- ── Caption box (bottom-right during settle holds) ──────── -->
+      <div id="settle-box">
+        <p id="settle-box-title"></p>
+        <p id="settle-box-sub"></p>
+        <div id="settle-box-footer">
+          <a href="https://www.tiktok.com/@fortnitenostalgia.fn" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:7px;color:inherit;text-decoration:none;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+              <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+            </svg>
+            <span>FN Nostalgia</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ── Video section (horizontal carousel) ─────────────── -->
+      <div id="video-section">
+        <div id="video-track">
+          <div class="video-slot">
+            <video src="./videos/METEOR.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">Meteor Strike</p><p class="vsub">Season 3</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/ROCKET.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Rocket Launch</p><p class="vsub">Season 4</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/CUBE.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">Kevin the Cube</p><p class="vsub">Season 5</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/BUTTERFLY.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Butterfly</p><p class="vsub">Season 6</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/ICE.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Ice Storm</p><p class="vsub">Season 7</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/VOLCANO.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Volcano</p><p class="vsub">Season 8</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/FIGHT.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Final Fight</p><p class="vsub">Season 9</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/END.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The End</p><p class="vsub">Season X</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Relive card 1 (live events) ─────────────────────────── -->
+      <div id="relive-box">
+        <p id="relive-box-title">Relive the best live events<br>of the game:</p>
+      </div>
+
+      <!-- ── Video section 2 (moments carousel) ────────────────── -->
+      <div id="video-section-2">
+        <div id="video-track-2">
+          <div class="video-slot">
+            <video src="./videos/360.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">360 No Scope</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/hunting.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">Hunting Party</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/revolver.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">The Revolver</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/rocket%20ride.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">Rocket Ride</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/trap.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">Trap Tower</p></div>
+          </div>
+          <div class="video-slot">
+            <video src="./videos/world%20cup.mp4" playsinline preload="metadata" loop></video>
+            <div class="video-slot-label"><p class="vtitle">World Cup</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Relive card 2 (clips) ────────────────────────────── -->
+      <div id="relive-box-2">
+        <p>Relive the best clips<br>from the game:</p>
+      </div>
+
+    </div><!-- /#stage -->
+  </div><!-- /#scroll-root -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <script>
+  /* ══════════════════════════════════════════════════════════
+     CHAPTERS CONFIG  (labels emptied — add back when ready)
+  ══════════════════════════════════════════════════════════ */
+  const CHAPTERS = [
+    {
+      id: "launch",
+      folder: "Sequence/launch",
+      ext: "jpg",
+      frameCount: 121,
+      scrollHeight: 400,
+      settleVh: 250,
+      settlePhoto: './photos/settle-map.png',
+      caption: { title: 'The Island Where It All Began', sub: 'Season 1 · Battle Royale' },
+      labels: []
+    },
+    {
+      id: "map",
+      folder: "Sequence/map",
+      ext: "jpg",
+      frameCount: 61,
+      scrollHeight: 300,
+      settleVh: 250,
+      settlePhoto: './photos/settle-end.jpeg',
+      caption: { title: 'Drop Into Battle', sub: 'Chapter 1 · December 2019' },
+      labels: []
+    },
+    {
+      id: "tilted_approach",
+      folder: "Sequence/tilted_approach",
+      ext: "jpg",
+      frameCount: 61,
+      scrollHeight: 300,
+      settleVh: 250,
+      settlePhoto: './photos/tilted_glider.jpg',
+      caption: { title: 'Tilted Towers', sub: 'Dropping in...' },
+      labels: []
+    },
+    {
+      id: "tilted_city",
+      folder: "Sequence/tilted_city",
+      ext: "jpg",
+      frameCount: 81,
+      scrollHeight: 350,
+      settleVh: 250,
+      settlePhoto: './photos/fortnite-tilted-towers-screenshot.png',
+      caption: { title: 'Tilted', sub: "Everyone's favourite POI" },
+      labels: []
+    },
+  ];
+
+  /* ── Tune these ──────────────────────────────────────────── */
+  const ROCKET_VH   = 130;   // scroll distance for rocket intro
+  const END_HOLD_VH = 220;   // extra hold after last settle before end card
+  const END_CARD_AT = 0.6;   // fraction into hold where end card fades in
+
+  /* ── First settle (special: shown during rocket crossfade) ── */
+  const SETTLE_LAUNCH = './photos/settle-launch.jpg';
+  // All subsequent settle photos live in CHAPTERS[i].settlePhoto
+  const EASE         = 0.07;  // lerp factor: lower = floatier, higher = snappier
+  // Crossfade: canvas fades in over this rocket-progress window (0–1)
+  const XFADE_START  = 0.16;  // right as FN text disappears
+  const XFADE_END    = 1.0;   // fully faded by end of rocket section → video starts
+
+  /* ══════════════════════════════════════════════════════════
+     ENGINE
+  ══════════════════════════════════════════════════════════ */
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const loader     = document.getElementById('loader');
+  const endCard    = document.getElementById('end-card');
+  const scrollRoot = document.getElementById('scroll-root');
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ── Cumulative chapter positions (offset by ROCKET_VH) ──── */
+  const chStarts = [];
+  let cumVh = ROCKET_VH;
+  CHAPTERS.forEach(ch => {
+    chStarts.push(cumVh);
+    cumVh += ch.scrollHeight + (ch.settleVh || 0);
+  });
+  const holdStartVh    = cumVh;
+
+  /* ── Video carousel config ───────────────────────────────── */
+  const RELIVE_SLIDE_VH = 130;  // how long the relive card takes to slide away
+  const VIDEO_PER_VH    = 160;  // scroll distance per video
+  const N_VIDEOS        = 8;
+  const FINAL_HOLD_VH   = 180;  // hold before end card
+
+  const VIDEO_LEAD_VH      = 100;  // hold before events carousel scrolls
+  const N_VIDEOS_2          = 6;
+  const MOMENTS_SLIDE_VH    = 130;
+  const MOMENTS_LEAD_VH     = 100;  // hold before moments carousel scrolls
+
+  const reliveSlideEndVh   = holdStartVh + RELIVE_SLIDE_VH;
+  const videoStartVh       = reliveSlideEndVh + VIDEO_LEAD_VH;
+  const videoEndVh         = videoStartVh + N_VIDEOS * VIDEO_PER_VH;
+
+  // Moments section starts right as events carousel ends
+  const momentsCardStartVh  = videoEndVh;
+  const momentsSlideEndVh   = momentsCardStartVh + 40 + MOMENTS_SLIDE_VH;
+  const momentsVideoStartVh = momentsSlideEndVh + MOMENTS_LEAD_VH;
+  const momentsVideoEndVh   = momentsVideoStartVh + N_VIDEOS_2 * VIDEO_PER_VH;
+  const totalVh             = momentsVideoEndVh + FINAL_HOLD_VH;
+  scrollRoot.style.height = `${totalVh}vh`;
+
+  /* ── Helpers ─────────────────────────────────────────────── */
+  const clamp  = (v, a, b) => Math.max(a, Math.min(b, v));
+  const smooth = (a, b, x) => { const t = clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+  const frameSrc = (ch, n) => `./${ch.folder}/frame-${String(n).padStart(3,'0')}.${ch.ext}`;
+
+  /* ── Cached viewport dims (avoids per-frame layout queries) ── */
+  let _vw = window.innerWidth, _vh = window.innerHeight;
+
+  /* ── Pre-computed chapter bounds (built once, reused every frame) ─ */
+  const chBounds = (() => {
+    let pos = ROCKET_VH;
+    return CHAPTERS.map(ch => {
+      const vs = pos, ve = pos + ch.scrollHeight, se = ve + (ch.settleVh || 0);
+      pos = se;
+      return { vs, ve, se };
+    });
+  })();
+
+  /* ── Canvas setup ───────────────────────────────────────── */
+  const canvas = document.getElementById('main-canvas');
+  const ctx    = canvas.getContext('2d', { alpha: false });
+  const dpr    = Math.min(window.devicePixelRatio || 1, 2); // cap at 2×
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'low';
+
+  function resizeCanvas() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low';
+  }
+  resizeCanvas();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      _vw = window.innerWidth; _vh = window.innerHeight;
+      resizeCanvas(); redrawCurrent();
+    }, 150);
+  });
+
+  /* ── Draw helpers ───────────────────────────────────────── */
+  const state = { ci: 0, fi: -1 };
+
+  // Fast blit — ImageBitmaps are pre-cropped to CSS canvas size, no scaling needed
+  function blit(img) {
+    if (!img) return;
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    ctx.drawImage(img, 0, 0, cw, ch);
+  }
+
+  function redrawCurrent() {
+    const img = CHAPTERS[state.ci].images?.[state.fi];
+    if (img) blit(img);
+  }
+
+  /* ── Preload — decode + cover-crop bitmaps to screen size ── */
+  async function preloadChapter(chapter) {
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    const bitmaps = new Array(chapter.frameCount).fill(null);
+    let done = 0;
+
+    await new Promise(resolve => {
+      for (let i = 0; i < chapter.frameCount; i++) {
+        const img = new Image();
+        const idx = i;
+        img.onload = () => {
+          const iw = img.naturalWidth, ih = img.naturalHeight;
+          const scale = Math.max(cw / iw, ch / ih);
+          const sw = Math.round(cw / scale), sh = Math.round(ch / scale);
+          const sx = Math.round((iw - sw) / 2), sy = Math.round((ih - sh) / 2);
+
+          const bmpPromise = (typeof createImageBitmap !== 'undefined')
+            ? createImageBitmap(img, sx, sy, sw, sh, { resizeWidth: cw, resizeHeight: ch, resizeQuality: 'medium' })
+            : Promise.resolve(img);
+
+          bmpPromise
+            .then(bmp  => { bitmaps[idx] = bmp; })
+            .catch(()  => { bitmaps[idx] = img; })
+            .finally(() => { if (++done === chapter.frameCount) resolve(); });
+        };
+        img.onerror = () => { if (++done === chapter.frameCount) resolve(); };
+        img.src = frameSrc(chapter, i + 1);
+      }
+    });
+
+    chapter.images = bitmaps;
+    return bitmaps;
+  }
+
+  /* ── Style-mutation guard (skip write if value unchanged) ── */
+  const _opacity = new Map();
+  function setOpacity(el, v) {
+    const s = v.toFixed(3);
+    if (_opacity.get(el) === s) return;
+    _opacity.set(el, s);
+    el.style.opacity = s;
+  }
+
+  /* ── Rocket refs ─────────────────────────────────────────── */
+  const rStage   = document.getElementById('rocket-stage');
+  const rRocket  = document.getElementById('r-rocket');
+  const rTail    = document.getElementById('r-tail');
+  const rEngine  = document.getElementById('r-engine');
+  const rStars   = document.getElementById('r-stars');
+  const rFlare   = document.getElementById('r-flare');
+  const rStreaks = document.getElementById('r-streaks');
+  const rType    = document.getElementById('r-type');
+  const rCue     = document.getElementById('r-cue');
+
+  /* ── Rocket animation ────────────────────────────────────── */
+  function applyRocket(p) {
+    const m   = _vw < 760;
+    const acc = p*p*0.62 + p*0.38;
+
+    if (rRocket) {
+      const rx = acc * _vw * (m ? 0.78 : 0.98);
+      const ry = -acc * _vh * (m ? 1.05 : 1.28);
+      const rs = 1 + acc * (m ? 0.26 : 0.4);
+      rRocket.style.transform = `translate3d(${rx}px,${ry}px,0) scale(${rs})`;
+      setOpacity(rRocket, 1 - smooth(0.66, 0.95, p));
+    }
+    const fade = 1 - smooth(0.66, 0.95, p);
+    if (rTail) {
+      const grow = 0.28 + acc * 1.35;
+      const tin  = 0.16 + smooth(0, 0.16, p) * 0.84;
+      rTail.style.transform = `rotate(153deg) scaleX(${grow.toFixed(3)})`;
+      setOpacity(rTail, tin * fade);
+    }
+    if (rEngine) setOpacity(rEngine, (0.55 + acc * 0.45) * fade);
+    if (rStars)  rStars.style.transform = `translate3d(${-p*34}px,${p*(m?130:250)}px,0) scale(${1+p*0.13})`;
+    if (rFlare) {
+      const bloom = Math.sin(Math.min(p, 1) * Math.PI);
+      rFlare.style.transform = `scale(${1 + bloom * 0.32})`;
+      setOpacity(rFlare, (0.5 + bloom * 0.5) * (1 - smooth(0.72, 0.99, p)));
+    }
+    if (rStreaks) {
+      if (m) { rStreaks.style.opacity = '0'; }
+      else {
+        const vis = smooth(0.12, 0.5, p);
+        rStreaks.style.transform = `translate3d(0,${p*_vh*1.5}px,0) scaleY(${1+p*1.7})`;
+        setOpacity(rStreaks, vis * 0.9);
+      }
+    }
+    if (rType) {
+      const t = smooth(0, 0.16, p);
+      rType.style.transform = `translate3d(0,${-t*96}px,0)`;
+      setOpacity(rType, 1 - t);
+    }
+    if (rCue) setOpacity(rCue, 1 - smooth(0, 0.05, p));
+  }
+
+  /* ── Settle overlay refs ─────────────────────────────────── */
+  const settleImg   = document.getElementById('settle-img');
+  const settleCue   = document.getElementById('settle-cue');
+  const settleBox   = document.getElementById('settle-box');
+  const settleBoxTi = document.getElementById('settle-box-title');
+  const settleBoxSu = document.getElementById('settle-box-sub');
+  let   _settleSrc  = '';
+
+  /* caption lookup — keyed by settlePhoto path */
+  const CAPTIONS = new Map([
+    [SETTLE_LAUNCH, { title: "Let's Lift Off", sub: 'Season 4' }],
+    ...CHAPTERS.filter(ch => ch.settlePhoto && ch.caption)
+               .map(ch => [ch.settlePhoto, ch.caption]),
+  ]);
+
+  /* showSettle(src, alpha, showUI)
+     showUI=false  → only the photo (used for the quick SETTLE_LAUNCH bridge)
+     showUI=true   → photo + caption box + scroll cue                        */
+  function showSettle(src, alpha, showUI = true) {
+    if (src !== _settleSrc) {
+      _settleSrc = src;
+      settleImg.src = src;
+      if (showUI) {
+        const cap = CAPTIONS.get(src);
+        settleBoxTi.textContent = cap ? cap.title : '';
+        settleBoxSu.textContent = cap ? cap.sub   : '';
+      }
+    }
+    setOpacity(settleImg, alpha);
+    setOpacity(settleBox, showUI ? alpha : 0);
+    setOpacity(settleCue, showUI ? alpha : 0);
+  }
+
+  function hideSettle() {
+    setOpacity(settleImg, 0);
+    setOpacity(settleBox, 0);
+    setOpacity(settleCue, 0);
+  }
+
+  /* ── Stateless settle computation (pure fn of scrollV) ───── *
+   * Order:
+   *  0. SETTLE_LAUNCH   — during rocket crossfade (title disappears)
+   *  i+1. ch.settlePhoto — fades in at end of chapter i video, holds, fades out at start of next
+   *  last settlePhoto holds all the way through end hold (end card fades on top)
+   * ─────────────────────────────────────────────────────────── */
+  // suppressLastUI: true when relive-box is taking over caption for last chapter settle
+  function applySettle(scrollV, suppressLastUI = false) {
+    {
+      const rIn   = ROCKET_VH * 0.72;
+      const rPeak = ROCKET_VH;
+      const vs    = chBounds[0].vs;
+      const rHold = vs + 0.22 * CHAPTERS[0].scrollHeight;
+      const rOut  = vs + 0.30 * CHAPTERS[0].scrollHeight;
+      if (scrollV >= rIn && scrollV < rOut) {
+        const a = scrollV < rPeak ? smooth(rIn, rPeak, scrollV)
+                : scrollV < rHold ? 1
+                :                   1 - smooth(rHold, rOut, scrollV);
+        return showSettle(SETTLE_LAUNCH, a);
+      }
+    }
+
+    for (let i = 0; i < CHAPTERS.length; i++) {
+      const src    = CHAPTERS[i].settlePhoto;
+      if (!src) continue;
+      const isLast = i === CHAPTERS.length - 1;
+      const { ve, se } = chBounds[i];
+      const fadeInStart = ve - 0.15 * CHAPTERS[i].scrollHeight;
+      const nextVs      = isLast ? Infinity : chBounds[i + 1].vs;
+      const fadeOutEnd  = isLast ? Infinity : nextVs + 0.08 * CHAPTERS[i + 1].scrollHeight;
+
+      if (scrollV >= fadeInStart && scrollV < fadeOutEnd) {
+        const a = scrollV < ve  ? smooth(fadeInStart, ve, scrollV)
+                : scrollV < se  ? 1
+                : isLast        ? 1
+                :                 1 - smooth(nextVs, fadeOutEnd, scrollV);
+        // Last chapter: suppress settle-box/cue so relive-box can show centered
+        return showSettle(src, a, isLast ? !suppressLastUI : true);
+      }
+    }
+
+    hideSettle();
+  }
+
+  /* ── Relive + video refs ─────────────────────────────────── */
+  const reliveBox     = document.getElementById('relive-box');
+  const reliveBox2    = document.getElementById('relive-box-2');
+  const videoSection  = document.getElementById('video-section');
+  const videoSection2 = document.getElementById('video-section-2');
+  const videoTrack    = document.getElementById('video-track');
+  const videoTrack2   = document.getElementById('video-track-2');
+  // Scope each video list to its own section so the two arrays don't mix
+  const videoEls  = Array.from(videoSection.querySelectorAll('.video-slot video'));
+  const videoEls2 = Array.from(videoSection2.querySelectorAll('.video-slot video'));
+  let _activeVid  = -1;
+  let _activeVid2 = -1;
+
+  function _playAt(els, activeRef, idx, setActive) {
+    if (idx === activeRef) return;
+    setActive(idx);
+    els.forEach((v, i) => {
+      if (i === idx) {
+        v.muted = false;
+        v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+      } else {
+        v.pause();
+      }
+    });
+  }
+  function updateVideoPlayback(idx)   { _playAt(videoEls,  _activeVid,  idx, v => { _activeVid  = v; }); }
+  function updateMomentsPlayback(idx) { _playAt(videoEls2, _activeVid2, idx, v => { _activeVid2 = v; }); }
+
+  /* ── Master scene update ─────────────────────────────────── */
+  const endCardAt         = (momentsVideoEndVh + FINAL_HOLD_VH * END_CARD_AT) / totalVh;
+  const lastSettleStartVh = chBounds[CHAPTERS.length - 1].ve;
+
+  function updateScene(p) {
+    const scrollV = p * totalVh;
+
+    // ── Rocket intro ───────────────────────────────────────
+    if (scrollV <= ROCKET_VH) {
+      const rp = scrollV / ROCKET_VH;
+      setOpacity(rStage, 1);
+      applyRocket(rp);
+      rStage.style.transform = `translateY(${(-smooth(XFADE_START, XFADE_END, rp) * _vh).toFixed(1)}px)`;
+      applySettle(scrollV);
+      setOpacity(reliveBox, 0); setOpacity(videoSection, 0);
+      setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
+      endCard.classList.toggle('visible', false);
+      return;
+    }
+
+    setOpacity(rStage, 0);
+
+    // ── Chapter frame scrub ────────────────────────────────
+    let ci = CHAPTERS.length - 1;
+    for (let i = 0; i < CHAPTERS.length; i++) {
+      if (scrollV < chStarts[i] + CHAPTERS[i].scrollHeight + (CHAPTERS[i].settleVh || 0))
+        { ci = i; break; }
+    }
+    const ch        = CHAPTERS[ci];
+    const chScrollV = scrollV - chStarts[ci];
+    if (chScrollV <= ch.scrollHeight) {
+      const fi = Math.round(clamp(chScrollV / ch.scrollHeight, 0, 1) * (ch.frameCount - 1));
+      if (ci !== state.ci || fi !== state.fi) {
+        state.ci = ci; state.fi = fi;
+        const img = ch.images?.[fi];
+        if (img) blit(img);
+      }
+    }
+
+    // Lazy-load next chapter at 70%
+    for (let i = 1; i < CHAPTERS.length; i++) {
+      const thresh = (chStarts[i-1] + CHAPTERS[i-1].scrollHeight * 0.7) / totalVh;
+      if (p >= thresh && !CHAPTERS[i].images && !CHAPTERS[i]._loading) {
+        CHAPTERS[i]._loading = true; preloadChapter(CHAPTERS[i]);
+      }
+    }
+
+    // ── Moments section (after events carousel ends) ───────
+    if (scrollV >= momentsCardStartVh) {
+      updateVideoPlayback(-1);  // pause events videos
+      setOpacity(reliveBox, 0); // events relive card fully gone
+
+      const momA = smooth(momentsCardStartVh, momentsCardStartVh + 40, scrollV);
+      setOpacity(reliveBox2, momA);
+
+      if (scrollV >= momentsCardStartVh + 40) {
+        const momSlideP = smooth(momentsCardStartVh + 40, momentsSlideEndVh, scrollV);
+        reliveBox2.style.transform = `translateY(${(-momSlideP * _vh).toFixed(1)}px)`;
+
+        const momVidA = smooth(momentsCardStartVh + 40, momentsCardStartVh + 90, scrollV);
+        setOpacity(videoSection2, momVidA);
+        videoSection2.style.pointerEvents = momVidA > 0.5 ? 'auto' : 'none';
+
+        if (scrollV >= momentsSlideEndVh) {
+          const momP   = clamp((scrollV - momentsVideoStartVh) / (N_VIDEOS_2 * VIDEO_PER_VH), 0, 1);
+          const slotW  = videoTrack2.firstElementChild.offsetWidth;
+          const gap    = _vw * 0.05;
+          videoTrack2.style.transform =
+            `translateX(${(-(momP * (N_VIDEOS_2 - 1) * (slotW + gap))).toFixed(1)}px)`;
+          updateMomentsPlayback(Math.round(momP * (N_VIDEOS_2 - 1)));
+        } else {
+          updateMomentsPlayback(0);
+        }
+      } else {
+        reliveBox2.style.transform = 'translateY(0px)';
+        setOpacity(videoSection2, 0);
+        updateMomentsPlayback(-1);
+      }
+      hideSettle();
+
+    // ── Events section (last settle → events carousel) ────
+    } else if (scrollV >= lastSettleStartVh) {
+      setOpacity(reliveBox2, 0);
+      setOpacity(videoSection2, 0);
+      updateMomentsPlayback(-1);
+
+      const reliveA = smooth(lastSettleStartVh, lastSettleStartVh + 40, scrollV);
+      setOpacity(reliveBox, reliveA);
+
+      if (scrollV >= holdStartVh) {
+        const slideP = smooth(holdStartVh, reliveSlideEndVh, scrollV);
+        reliveBox.style.transform = `translateY(${(-slideP * _vh).toFixed(1)}px)`;
+
+        const vidA = smooth(holdStartVh, holdStartVh + 50, scrollV);
+        setOpacity(videoSection, vidA);
+        videoSection.style.pointerEvents = vidA > 0.5 ? 'auto' : 'none';
+
+        if (scrollV >= reliveSlideEndVh) {
+          const videoP = clamp((scrollV - videoStartVh) / (N_VIDEOS * VIDEO_PER_VH), 0, 1);
+          const slotW  = videoTrack.firstElementChild.offsetWidth;
+          const gap    = _vw * 0.05;
+          videoTrack.style.transform =
+            `translateX(${(-(videoP * (N_VIDEOS - 1) * (slotW + gap))).toFixed(1)}px)`;
+          updateVideoPlayback(Math.round(videoP * (N_VIDEOS - 1)));
+        } else {
+          updateVideoPlayback(0);
+        }
+        hideSettle();
+      } else {
+        reliveBox.style.transform = 'translateY(0px)';
+        setOpacity(videoSection, 0);
+        applySettle(scrollV, true);
+      }
+
+    // ── Pre-settle (chapters + earlier settles) ────────────
+    } else {
+      setOpacity(reliveBox, 0);   setOpacity(videoSection, 0);
+      setOpacity(reliveBox2, 0);  setOpacity(videoSection2, 0);
+      updateVideoPlayback(-1);
+      updateMomentsPlayback(-1);
+      applySettle(scrollV);
+    }
+
+    const isEndCard = p >= endCardAt;
+    endCard.classList.toggle('visible', isEndCard);
+    if (isEndCard) { updateVideoPlayback(-1); updateMomentsPlayback(-1); }
+  }
+
+  /* ── ScrollTrigger + ticker lerp with idle exit ──────────── */
+  function initScrollTrigger() {
+    let targetP = 0, lerpP = 0, settled = false;
+
+    ScrollTrigger.create({
+      trigger: scrollRoot,
+      start:   'top top',
+      end:     'bottom bottom',
+      scrub:   true,
+      onUpdate(self) { targetP = self.progress; settled = false; },
+    });
+
+    gsap.ticker.add(() => {
+      if (settled) return; // nothing moving — skip entirely
+      const delta = targetP - lerpP;
+      if (Math.abs(delta) < 0.00005) {
+        lerpP = targetP;
+        updateScene(lerpP);
+        settled = true;
+        return;
+      }
+      lerpP += delta * EASE;
+      updateScene(lerpP);
+    });
+  }
+
+  /* ── Init ────────────────────────────────────────────────── */
+  async function init() {
+    // Kick off settle image preloads early (browser caches them for when needed)
+    [SETTLE_LAUNCH, ...CHAPTERS.map(ch => ch.settlePhoto).filter(Boolean)]
+      .forEach(src => { const i = new Image(); i.src = src; });
+
+    await preloadChapter(CHAPTERS[0]);
+    blit(CHAPTERS[0].images[0]);
+    loader.classList.add('hidden');
+    if (reducedMotion) { applyRocket(0); return; }
+    initScrollTrigger();
+    ScrollTrigger.refresh();
+  }
+
+  init();
+  </script>
+</body>
+</html>
