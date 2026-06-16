@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FN — Fortnite Nostalgia</title>
+  <title>Fortnite Nostalgia</title>
+  <link rel="icon" type="image/png" href="./assets/rocket.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Saira+Condensed:wght@800&family=Saira:wght@300;400&display=swap" rel="stylesheet">
@@ -13,7 +14,7 @@
     body {
       background: #08060F;
       font-family: 'Inter', system-ui, sans-serif;
-      overflow-x: hidden;
+      overflow: hidden;
       color: #fff;
     }
 
@@ -98,7 +99,7 @@
       50%     { transform: translate(-50%,-50%) scale(1.22); opacity: 1;   }
     }
 
-    /* ── Canvas layer (always visible, rocket stage slides over it) ── */
+    /* ── Canvas layer (black backdrop) ─────────────────────── */
     #main-canvas {
       position: absolute;
       inset: 0;
@@ -106,6 +107,21 @@
       width: 100%;
       height: 100%;
       display: block;
+    }
+
+    /* ── Chapter video (plays per chapter, sits above canvas) ── */
+    #chapter-video {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #08060F;
+      display: block;
+      opacity: 0;
+      pointer-events: none;
+      will-change: opacity;
     }
 
     /* ── End card ────────────────────────────────────────────── */
@@ -178,12 +194,68 @@
     }
     #end-copy-btn:hover { background: rgba(255,255,255,0.22); }
     #end-copy-btn.copied { background: rgba(80,220,140,0.25); border-color: rgba(80,220,140,0.5); }
+    #restart-btn {
+      margin-top: 1.5rem;
+      padding: 0.7rem 2.2rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 8px;
+      color: #fff;
+      font-family: 'Saira', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #restart-btn:hover { background: rgba(255,255,255,0.22); }
 
-    /* ── Settle UI (cue + caption box) ─────────────────────── */
-    #settle-cue {
+    /* ── Continue button (shown on each freeze-frame photo) ── */
+    #settle-continue {
       position: absolute;
-      left: 0; right: 0; bottom: 32px;
+      left: 0; right: 0; bottom: 40px;
       z-index: 10;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      will-change: opacity;
+    }
+    #settle-continue button {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px) saturate(1.4);
+      -webkit-backdrop-filter: blur(10px) saturate(1.4);
+      border: 1px solid rgba(255,255,255,0.32);
+      border-radius: 999px;
+      color: #fff;
+      font-family: 'Saira', sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 13px 38px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s;
+    }
+    #settle-continue button:hover {
+      background: rgba(255,255,255,0.24);
+      transform: translateY(-1px);
+    }
+    #settle-continue button svg {
+      width: 16px; height: 16px;
+      animation: fnCueBob 1.7s ease-in-out infinite;
+    }
+
+    /* ── Scroll indicator on the relive screen ─────────────── */
+    #relive-cue {
+      position: absolute;
+      left: 0; right: 0; bottom: 34px;
+      z-index: 12;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -192,22 +264,22 @@
       opacity: 0;
       will-change: opacity;
     }
-    #settle-cue-label {
+    #relive-cue-label {
       font-family: 'Saira', sans-serif;
       font-weight: 400;
-      color: rgba(255,255,255,.65);
+      color: rgba(255,255,255,.7);
       font-size: 12px;
       letter-spacing: .34em;
       text-transform: uppercase;
       padding-left: .34em;
     }
-    #settle-cue-track {
+    #relive-cue-track {
       width: 22px; height: 34px;
-      border: 1.5px solid rgba(255,255,255,.35);
+      border: 1.5px solid rgba(255,255,255,.4);
       border-radius: 12px;
       position: relative;
     }
-    #settle-cue-dot {
+    #relive-cue-dot {
       position: absolute;
       left: 50%; top: 7px;
       width: 3px; height: 7px;
@@ -381,7 +453,8 @@
 
     @media (prefers-reduced-motion: reduce) {
       .loader-dot { animation: none; opacity: 1; }
-      #settle-cue-dot { animation: none; }
+      #settle-continue button svg { animation: none; }
+      #relive-cue-dot { animation: none; }
     }
   </style>
 </head>
@@ -395,6 +468,7 @@
       <input id="end-copy-input" type="text" readonly value="<!-- PLACEHOLDER: add your text in end-card-text.txt -->">
       <button id="end-copy-btn" onclick="(function(){const i=document.getElementById('end-copy-input');i.select();navigator.clipboard.writeText(i.value).catch(()=>{document.execCommand('copy')});const b=document.getElementById('end-copy-btn');b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied')},1800)})()">Copy</button>
     </div>
+    <button id="restart-btn">Watch Again</button>
   </div>
 
   <div id="scroll-root">
@@ -490,19 +564,24 @@
 
       </div><!-- /#rocket-stage -->
 
-      <!-- ── Canvas (frame sequence, fades in over rocket) ───── -->
+      <!-- ── Canvas (black backdrop) ─────────────────────────── -->
       <canvas id="main-canvas"></canvas>
 
-      <!-- ── Settle photo overlay (high-res, fades in at chapter end) ── -->
+      <!-- ── Chapter video (plays per chapter) ───────────────── -->
+      <video id="chapter-video" playsinline preload="auto"></video>
+
+      <!-- ── Settle photo overlay (freeze-frame, shown after each video) ── -->
       <img id="settle-img" alt="" style="
         position:absolute;inset:0;width:100%;height:100%;
         object-fit:cover;z-index:3;opacity:0;pointer-events:none;
         will-change:opacity;">
 
-      <!-- ── Scroll cue (shows during settle holds) ────────────── -->
-      <div id="settle-cue">
-        <div id="settle-cue-label">Keep scrolling</div>
-        <div id="settle-cue-track"><div id="settle-cue-dot"></div></div>
+      <!-- ── Continue button (shown on each freeze-frame photo) ── -->
+      <div id="settle-continue">
+        <button type="button">
+          Continue
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
       </div>
 
       <!-- ── Caption box (bottom-right during settle holds) ──────── -->
@@ -562,6 +641,12 @@
         <p id="relive-box-title">Relive the best live events<br>of the game:</p>
       </div>
 
+      <!-- ── Scroll indicator (shown on the relive screen) ───────── -->
+      <div id="relive-cue">
+        <div id="relive-cue-label">Scroll</div>
+        <div id="relive-cue-track"><div id="relive-cue-dot"></div></div>
+      </div>
+
       <!-- ── Video section 2 (moments carousel) ────────────────── -->
       <div id="video-section-2">
         <div id="video-track-2">
@@ -611,6 +696,7 @@
     {
       id: "launch",
       folder: "Sequence/launch",
+      video: './Sequence/launch/rocket.mp4',
       ext: "jpg",
       frameCount: 121,
       scrollHeight: 400,
@@ -622,6 +708,7 @@
     {
       id: "map",
       folder: "Sequence/map",
+      video: './Sequence/map/map.mp4',
       ext: "jpg",
       frameCount: 61,
       scrollHeight: 300,
@@ -633,6 +720,7 @@
     {
       id: "tilted_approach",
       folder: "Sequence/tilted_approach",
+      video: './Sequence/tilted_approach/tilted_approach.mp4',
       ext: "jpg",
       frameCount: 61,
       scrollHeight: 300,
@@ -644,6 +732,7 @@
     {
       id: "tilted_city",
       folder: "Sequence/tilted_city",
+      video: './Sequence/tilted_city/tilted_city.mp4',
       ext: "jpg",
       frameCount: 81,
       scrollHeight: 350,
@@ -867,12 +956,14 @@
   }
 
   /* ── Settle overlay refs ─────────────────────────────────── */
-  const settleImg   = document.getElementById('settle-img');
-  const settleCue   = document.getElementById('settle-cue');
-  const settleBox   = document.getElementById('settle-box');
-  const settleBoxTi = document.getElementById('settle-box-title');
-  const settleBoxSu = document.getElementById('settle-box-sub');
-  let   _settleSrc  = '';
+  const settleImg     = document.getElementById('settle-img');
+  const settleBox     = document.getElementById('settle-box');
+  const settleBoxTi   = document.getElementById('settle-box-title');
+  const settleBoxSu   = document.getElementById('settle-box-sub');
+  const chapterVideo  = document.getElementById('chapter-video');
+  const continueWrap  = document.getElementById('settle-continue');
+  const continueBtn   = continueWrap.querySelector('button');
+  let   _settleSrc    = '';
 
   /* caption lookup — keyed by settlePhoto path */
   const CAPTIONS = new Map([
@@ -896,13 +987,11 @@
     }
     setOpacity(settleImg, alpha);
     setOpacity(settleBox, showUI ? alpha : 0);
-    setOpacity(settleCue, showUI ? alpha : 0);
   }
 
   function hideSettle() {
     setOpacity(settleImg, 0);
     setOpacity(settleBox, 0);
-    setOpacity(settleCue, 0);
   }
 
   /* ── Stateless settle computation (pure fn of scrollV) ───── *
@@ -913,20 +1002,6 @@
    * ─────────────────────────────────────────────────────────── */
   // suppressLastUI: true when relive-box is taking over caption for last chapter settle
   function applySettle(scrollV, suppressLastUI = false) {
-    {
-      const rIn   = ROCKET_VH * 0.72;
-      const rPeak = ROCKET_VH;
-      const vs    = chBounds[0].vs;
-      const rHold = vs + 0.22 * CHAPTERS[0].scrollHeight;
-      const rOut  = vs + 0.30 * CHAPTERS[0].scrollHeight;
-      if (scrollV >= rIn && scrollV < rOut) {
-        const a = scrollV < rPeak ? smooth(rIn, rPeak, scrollV)
-                : scrollV < rHold ? 1
-                :                   1 - smooth(rHold, rOut, scrollV);
-        return showSettle(SETTLE_LAUNCH, a);
-      }
-    }
-
     for (let i = 0; i < CHAPTERS.length; i++) {
       const src    = CHAPTERS[i].settlePhoto;
       if (!src) continue;
@@ -952,6 +1027,7 @@
   /* ── Relive + video refs ─────────────────────────────────── */
   const reliveBox     = document.getElementById('relive-box');
   const reliveBox2    = document.getElementById('relive-box-2');
+  const reliveCue     = document.getElementById('relive-cue');
   const videoSection  = document.getElementById('video-section');
   const videoSection2 = document.getElementById('video-section-2');
   const videoTrack    = document.getElementById('video-track');
@@ -993,41 +1069,18 @@
       applySettle(scrollV);
       setOpacity(reliveBox, 0); setOpacity(videoSection, 0);
       setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
+      setOpacity(reliveCue, 0);
       endCard.classList.toggle('visible', false);
       return;
     }
 
     setOpacity(rStage, 0);
 
-    // ── Chapter frame scrub ────────────────────────────────
-    let ci = CHAPTERS.length - 1;
-    for (let i = 0; i < CHAPTERS.length; i++) {
-      if (scrollV < chStarts[i] + CHAPTERS[i].scrollHeight + (CHAPTERS[i].settleVh || 0))
-        { ci = i; break; }
-    }
-    const ch        = CHAPTERS[ci];
-    const chScrollV = scrollV - chStarts[ci];
-    if (chScrollV <= ch.scrollHeight) {
-      const fi = Math.round(clamp(chScrollV / ch.scrollHeight, 0, 1) * (ch.frameCount - 1));
-      if (ci !== state.ci || fi !== state.fi) {
-        state.ci = ci; state.fi = fi;
-        const img = ch.images?.[fi];
-        if (img) blit(img);
-      }
-    }
-
-    // Lazy-load next chapter at 70%
-    for (let i = 1; i < CHAPTERS.length; i++) {
-      const thresh = (chStarts[i-1] + CHAPTERS[i-1].scrollHeight * 0.7) / totalVh;
-      if (p >= thresh && !CHAPTERS[i].images && !CHAPTERS[i]._loading) {
-        CHAPTERS[i]._loading = true; preloadChapter(CHAPTERS[i]);
-      }
-    }
-
     // ── Moments section (after events carousel ends) ───────
     if (scrollV >= momentsCardStartVh) {
       updateVideoPlayback(-1);  // pause events videos
       setOpacity(reliveBox, 0); // events relive card fully gone
+      setOpacity(reliveCue, 0);
 
       const momA = smooth(momentsCardStartVh, momentsCardStartVh + 40, scrollV);
       setOpacity(reliveBox2, momA);
@@ -1085,16 +1138,19 @@
           updateVideoPlayback(0);
         }
         hideSettle();
+        setOpacity(reliveCue, 0);  // hidden once the relive card slides up
       } else {
         reliveBox.style.transform = 'translateY(0px)';
         setOpacity(videoSection, 0);
         applySettle(scrollV, true);
+        setOpacity(reliveCue, reliveA);  // scroll indicator fades in with the relive screen
       }
 
     // ── Pre-settle (chapters + earlier settles) ────────────
     } else {
       setOpacity(reliveBox, 0);   setOpacity(videoSection, 0);
       setOpacity(reliveBox2, 0);  setOpacity(videoSection2, 0);
+      setOpacity(reliveCue, 0);
       updateVideoPlayback(-1);
       updateMomentsPlayback(-1);
       applySettle(scrollV);
@@ -1105,44 +1161,173 @@
     if (isEndCard) { updateVideoPlayback(-1); updateMomentsPlayback(-1); }
   }
 
-  /* ── ScrollTrigger + ticker lerp with idle exit ──────────── */
+  /* ── Phase-based driver ───────────────────────────────────
+     intro      → scroll-driven rocket (render.v 0…ROCKET_VH)
+     transition → quick rocket fly-off before first video
+     chapters   → autoplaying videos + "Continue" between each
+     carousels  → scroll-driven events + clips reels, then end card
+  ──────────────────────────────────────────────────────────── */
   function initScrollTrigger() {
-    let targetP = 0, lerpP = 0, settled = false;
+    const render = { v: 0 };     // virtual scroll position actually drawn
+    let manualTarget = 0;        // wheel-driven destination (scroll phases)
+    let phase = 'intro';
+    let ci = 0;                  // current chapter index
+    let entering = false;
 
-    ScrollTrigger.create({
-      trigger: scrollRoot,
-      start:   'top top',
-      end:     'bottom bottom',
-      scrub:   true,
-      onUpdate(self) { targetP = self.progress; settled = false; },
-    });
+    const MANUAL_EASE   = 0.16;  // higher = snappier scroll response
+    const VH_PER_SCROLL = 26;    // vh moved per 100px of deltaY
+    const MAX_LOOKAHEAD = 55;    // cap how far the target may lead the render
+
+    const carStartVh = lastSettleStartVh;  // carousels begin here (last settle behind relive card)
+
+    /* Preload the next chapter video so transitions don't stall */
+    const vPrefetch = document.createElement('video');
+    vPrefetch.preload = 'auto';
+    function prefetchChapter(i) {
+      if (i < CHAPTERS.length) { vPrefetch.src = CHAPTERS[i].video; vPrefetch.load(); }
+    }
+
+    function showContinue() { setOpacity(continueWrap, 1); continueWrap.style.pointerEvents = 'auto'; }
+    function hideContinue() { setOpacity(continueWrap, 0); continueWrap.style.pointerEvents = 'none'; }
+
+    /* Play chapter i's video; the freeze frame + Continue appears when it ends */
+    function playChapter(i) {
+      ci = i; phase = 'chapters';
+      hideSettle(); hideContinue();
+      setOpacity(rStage, 0);
+      setOpacity(reliveBox, 0);  setOpacity(videoSection, 0);
+      setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
+      updateVideoPlayback(-1);   updateMomentsPlayback(-1);
+      endCard.classList.remove('visible');
+
+      const ch = CHAPTERS[i];
+      if (chapterVideo.dataset.idx !== String(i)) {
+        chapterVideo.src = ch.video;
+        chapterVideo.dataset.idx = String(i);
+      }
+      setOpacity(chapterVideo, 1);
+      try { chapterVideo.currentTime = 0; } catch (e) {}
+      chapterVideo.muted = false;
+      chapterVideo.play().catch(() => { chapterVideo.muted = true; chapterVideo.play().catch(() => {}); });
+      prefetchChapter(i + 1);
+    }
+
+    /* Pre-launch freeze frame ("Let's Lift Off") shown before the first video */
+    function showLaunchSettle() {
+      phase = 'launch-settle';
+      setOpacity(rStage, 0);
+      setOpacity(chapterVideo, 0); chapterVideo.pause();
+      setOpacity(reliveBox, 0);  setOpacity(videoSection, 0);
+      setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
+      endCard.classList.remove('visible');
+      showSettle(SETTLE_LAUNCH, 1, true);
+      showContinue();
+    }
+
+    /* Video finished → reveal its freeze-frame photo + caption.
+       Middle chapters get a Continue button; the final freeze frame
+       auto-fades into the relive/carousels screen. */
+    function onChapterEnded() {
+      if (phase !== 'chapters') return;
+      showSettle(CHAPTERS[ci].settlePhoto, 1, true);
+      if (ci < CHAPTERS.length - 1) showContinue();
+      else autoEnterCarousels();
+    }
+
+    /* Continue clicked → first chapter (from launch settle) or next chapter */
+    function advance() {
+      if (phase === 'launch-settle') { hideContinue(); playChapter(0); return; }
+      if (phase !== 'chapters') return;
+      hideContinue();
+      if (ci < CHAPTERS.length - 1) playChapter(ci + 1);
+    }
+
+    /* Rocket fly-off, then the "Let's Lift Off" freeze frame */
+    function enterChapters() {
+      if (phase !== 'intro' || entering) return;
+      entering = true; phase = 'transition';
+      gsap.to(render, {
+        v: ROCKET_VH, duration: 0.45, ease: 'power2.in',
+        onUpdate() { updateScene(render.v / totalVh); },
+        onComplete() { showLaunchSettle(); },
+      });
+    }
+
+    /* Hold the final freeze frame briefly, then auto-fade in the relive
+       black screen + scroll indicator (user scrolls from there). */
+    function autoEnterCarousels() {
+      phase = 'transition';            // locked: ignore wheel during the hold
+      hideContinue();
+      gsap.delayedCall(1.4, () => {
+        phase = 'carousels';
+        chapterVideo.pause(); setOpacity(chapterVideo, 0);
+        render.v = carStartVh; manualTarget = carStartVh;
+        updateScene(render.v / totalVh);
+        // auto-reveal the relive card by easing the scroll target forward a touch
+        const t = { v: carStartVh };
+        gsap.to(t, { v: carStartVh + 42, duration: 0.9, ease: 'power2.out',
+          onUpdate() { manualTarget = t.v; } });
+      });
+    }
+
+    function reset() {
+      phase = 'intro'; ci = 0; entering = false;
+      render.v = 0; manualTarget = 0;
+      chapterVideo.pause(); setOpacity(chapterVideo, 0);
+      hideSettle(); hideContinue();
+      endCard.classList.remove('visible');
+      updateVideoPlayback(-1); updateMomentsPlayback(-1);
+      updateScene(0);
+    }
+
+    chapterVideo.addEventListener('ended', onChapterEnded);
+    continueBtn.addEventListener('click', advance);
+    const restartBtn = document.getElementById('restart-btn');
+    if (restartBtn) restartBtn.addEventListener('click', reset);
+
+    window.addEventListener('wheel', (e) => {
+      if (phase !== 'intro' && phase !== 'carousels') return;  // locked during videos / freeze frames
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;     // lines → px
+      if (e.deltaMode === 2) dy *= _vh;    // pages → px
+      const delta = (dy / 100) * VH_PER_SCROLL;
+
+      if (phase === 'intro') {
+        manualTarget = clamp(manualTarget + delta, 0, ROCKET_VH);
+        manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
+        if (delta > 0 && manualTarget >= ROCKET_VH - 0.5) enterChapters();
+      } else { // carousels
+        manualTarget = clamp(manualTarget + delta, carStartVh, totalVh);
+        manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
+      }
+    }, { passive: true });
 
     gsap.ticker.add(() => {
-      if (settled) return; // nothing moving — skip entirely
-      const delta = targetP - lerpP;
-      if (Math.abs(delta) < 0.00005) {
-        lerpP = targetP;
-        updateScene(lerpP);
-        settled = true;
-        return;
+      if (phase === 'intro' || phase === 'carousels') {
+        render.v += (manualTarget - render.v) * MANUAL_EASE;
+        updateScene(clamp(render.v / totalVh, 0, 1));
       }
-      lerpP += delta * EASE;
-      updateScene(lerpP);
     });
   }
 
   /* ── Init ────────────────────────────────────────────────── */
-  async function init() {
+  function init() {
     // Kick off settle image preloads early (browser caches them for when needed)
     [SETTLE_LAUNCH, ...CHAPTERS.map(ch => ch.settlePhoto).filter(Boolean)]
       .forEach(src => { const i = new Image(); i.src = src; });
 
-    await preloadChapter(CHAPTERS[0]);
-    blit(CHAPTERS[0].images[0]);
+    // Black canvas backdrop behind the chapter video
+    ctx.fillStyle = '#08060F';
+    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    // Pre-buffer the first chapter video so it's ready after the intro scroll
+    chapterVideo.src = CHAPTERS[0].video;
+    chapterVideo.dataset.idx = '0';
+    chapterVideo.load();
+
     loader.classList.add('hidden');
     if (reducedMotion) { applyRocket(0); return; }
     initScrollTrigger();
-    ScrollTrigger.refresh();
   }
 
   init();
