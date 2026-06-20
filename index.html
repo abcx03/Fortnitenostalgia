@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Fortnite Nostalgia</title>
   <link rel="icon" type="image/png" href="./assets/rocket.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,11 +11,18 @@
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html, body {
+      overscroll-behavior: none;          /* no pull-to-refresh / scroll chaining on mobile */
+    }
     body {
       background: #08060F;
       font-family: 'Inter', system-ui, sans-serif;
       overflow: hidden;
       color: #fff;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fn-img-btn, #restart-btn, #end-copy-btn, #home-play button, #settle-continue button {
+      touch-action: manipulation;          /* no tap delay / double-tap zoom on buttons */
     }
 
     /* ── Loader ─────────────────────────────────────────────── */
@@ -50,6 +57,7 @@
       top: 0;
       width: 100%;
       height: 100vh;
+      height: 100dvh;   /* dynamic viewport height → no gap under mobile toolbars */
       overflow: hidden;
     }
 
@@ -1178,6 +1186,7 @@
     const MANUAL_EASE   = 0.16;  // higher = snappier scroll response
     const VH_PER_SCROLL = 26;    // vh moved per 100px of deltaY
     const MAX_LOOKAHEAD = 55;    // cap how far the target may lead the render
+    const TOUCH_GAIN    = 1.3;   // extra sensitivity for finger drags vs wheel
 
     const carStartVh  = lastSettleStartVh;     // carousels begin here (last settle behind relive card)
     const eventsEndVh = videoEndVh - 0.5;        // gate 1: end of the events carousel
@@ -1191,10 +1200,11 @@
     [SFX_HOVER, SFX_CLICK].forEach(s => { const a = new Audio(s); a.preload = 'auto'; }); // warm cache
     // new Audio() per play → each sound is isolated and can overlap
     function playSfx(src, vol) { const a = new Audio(src); a.volume = vol; a.play().catch(() => {}); }
+    const canHover = window.matchMedia('(hover: hover)').matches;  // false on touch → no double sound on tap
     function wireBtn(btn) {
       if (!btn) return;
-      btn.addEventListener('mouseenter', () => playSfx(SFX_HOVER, 0.68));
-      btn.addEventListener('click',      () => playSfx(SFX_CLICK, 1.0));
+      if (canHover) btn.addEventListener('mouseenter', () => playSfx(SFX_HOVER, 0.68));
+      btn.addEventListener('click', () => playSfx(SFX_CLICK, 1.0));
     }
     function startLobby() {
       lobbyFaded = false;
@@ -1368,16 +1378,34 @@
     if (restartBtn) restartBtn.addEventListener('click', reset);
     [homePlayBtn, continueBtn, restartBtn, document.getElementById('end-copy-btn')].forEach(wireBtn);
 
+    // Shared scroll integrator (wheel on desktop, touch-drag on mobile)
+    function applyScroll(deltaVh) {
+      const maxV = !gatePassed ? eventsEndVh : (!gate2Passed ? clipsEndVh : totalVh);
+      manualTarget = clamp(manualTarget + deltaVh, carStartVh, maxV);
+      manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
+    }
+
     window.addEventListener('wheel', (e) => {
       if (phase !== 'carousels') return;  // only the carousels respond to scroll
       let dy = e.deltaY;
       if (e.deltaMode === 1) dy *= 16;     // lines → px
       if (e.deltaMode === 2) dy *= _vh;    // pages → px
-      const delta = (dy / 100) * VH_PER_SCROLL;
-      const maxV  = !gatePassed ? eventsEndVh : (!gate2Passed ? clipsEndVh : totalVh);
-      manualTarget = clamp(manualTarget + delta, carStartVh, maxV);
-      manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
+      applyScroll((dy / 100) * VH_PER_SCROLL);
     }, { passive: true });
+
+    // Touch-drag scrolling for mobile (drag up = scroll forward)
+    let touchY = null;
+    window.addEventListener('touchstart', (e) => {
+      touchY = (phase === 'carousels' && e.touches.length === 1) ? e.touches[0].clientY : null;
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (phase !== 'carousels' || touchY === null) return;
+      const y = e.touches[0].clientY;
+      applyScroll(((touchY - y) / 100) * VH_PER_SCROLL * TOUCH_GAIN);
+      touchY = y;
+      e.preventDefault();   // stop native scroll / rubber-band during the experience
+    }, { passive: false });
+    window.addEventListener('touchend', () => { touchY = null; }, { passive: true });
 
     gsap.ticker.add(() => {
       if (phase !== 'carousels') return;
