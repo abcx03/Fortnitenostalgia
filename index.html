@@ -211,44 +211,37 @@
     }
     #restart-btn:hover { background: rgba(255,255,255,0.22); }
 
+    /* ── Image buttons (PLAY / CONTINUE) ───────────────────── */
+    /* No explicit pointer-events here: the button inherits it from its
+       wrapper, so a hidden wrapper (pointer-events:none) truly disables
+       the button instead of an invisible button stealing clicks. */
+    .fn-img-btn {
+      border: none;
+      background-color: transparent;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+      cursor: pointer;
+      padding: 0;
+      filter: drop-shadow(0 6px 18px rgba(0,0,0,.45));
+      transition: transform 0.12s ease, filter 0.12s ease;
+    }
+    .fn-img-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      filter: drop-shadow(0 10px 26px rgba(0,0,0,.55)) brightness(1.07);
+    }
+    .fn-img-btn:active { transform: translateY(0) scale(0.98); }
+
     /* ── Continue button (shown on each freeze-frame photo) ── */
     #settle-continue {
       position: absolute;
-      left: 0; right: 0; bottom: 40px;
+      left: 0; right: 0; bottom: 6vh;
       z-index: 10;
       display: flex;
       justify-content: center;
       pointer-events: none;
       opacity: 0;
       will-change: opacity;
-    }
-    #settle-continue button {
-      pointer-events: auto;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(255,255,255,0.12);
-      backdrop-filter: blur(10px) saturate(1.4);
-      -webkit-backdrop-filter: blur(10px) saturate(1.4);
-      border: 1px solid rgba(255,255,255,0.32);
-      border-radius: 999px;
-      color: #fff;
-      font-family: 'Saira', sans-serif;
-      font-weight: 600;
-      font-size: 15px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      padding: 13px 38px;
-      cursor: pointer;
-      transition: background 0.15s, transform 0.15s;
-    }
-    #settle-continue button:hover {
-      background: rgba(255,255,255,0.24);
-      transform: translateY(-1px);
-    }
-    #settle-continue button svg {
-      width: 16px; height: 16px;
-      animation: fnCueBob 1.7s ease-in-out infinite;
     }
 
     /* ── Scroll indicator on the relive screen ─────────────── */
@@ -549,17 +542,13 @@
             letter-spacing:.42em;text-transform:uppercase;padding-left:.42em;">Tokenized Nostalgia</div>
         </div>
 
-        <!-- Scroll cue -->
-        <div id="r-cue" style="
-          position:absolute;left:0;right:0;bottom:34px;z-index:11;
-          display:flex;flex-direction:column;align-items:center;gap:11px;
-          pointer-events:none;opacity:0;animation:fnRiseIn 1s cubic-bezier(.16,1,.3,1) .9s both;">
-          <div style="font-family:'Saira',sans-serif;font-weight:400;color:rgba(226,222,252,.72);
-            font-size:12px;letter-spacing:.34em;text-transform:uppercase;padding-left:.34em;">Scroll to launch</div>
-          <div style="width:22px;height:34px;border:1.5px solid rgba(226,222,252,.42);border-radius:12px;position:relative;">
-            <div style="position:absolute;left:50%;top:7px;width:3px;height:7px;margin-left:-1.5px;
-              border-radius:2px;background:rgba(238,234,255,.9);animation:fnCueBob 1.7s ease-in-out infinite;"></div>
-          </div>
+        <!-- PLAY button (starts the experience) -->
+        <div id="home-play" style="
+          position:absolute;left:0;right:0;bottom:9vh;z-index:11;
+          display:flex;justify-content:center;
+          opacity:0;animation:fnRiseIn 1s cubic-bezier(.16,1,.3,1) .9s both;">
+          <button type="button" class="fn-img-btn" aria-label="Play"
+            style="background-image:url('./assets/btn-play.png');width:clamp(190px,23vw,270px);aspect-ratio:2142/584;"></button>
         </div>
 
       </div><!-- /#rocket-stage -->
@@ -578,10 +567,8 @@
 
       <!-- ── Continue button (shown on each freeze-frame photo) ── -->
       <div id="settle-continue">
-        <button type="button">
-          Continue
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </button>
+        <button type="button" class="fn-img-btn" aria-label="Continue"
+          style="background-image:url('./assets/btn-continue.png');width:clamp(210px,25vw,300px);aspect-ratio:2130/582;"></button>
       </div>
 
       <!-- ── Caption box (bottom-right during settle holds) ──────── -->
@@ -784,6 +771,8 @@
 
   const VIDEO_LEAD_VH      = 100;  // hold before events carousel scrolls
   const N_VIDEOS_2          = 6;
+  const MOMENTS_FADE_VH     = 40;   // relive-box-2 fade-in distance
+  const MOMENTS_HOLD_VH     = 170;  // centered hold for "Relive the best clips" + scroll cue
   const MOMENTS_SLIDE_VH    = 130;
   const MOMENTS_LEAD_VH     = 100;  // hold before moments carousel scrolls
 
@@ -793,7 +782,9 @@
 
   // Moments section starts right as events carousel ends
   const momentsCardStartVh  = videoEndVh;
-  const momentsSlideEndVh   = momentsCardStartVh + 40 + MOMENTS_SLIDE_VH;
+  const momentsFadeEndVh    = momentsCardStartVh + MOMENTS_FADE_VH;   // relive-box-2 fully shown
+  const momentsSlideStartVh = momentsFadeEndVh + MOMENTS_HOLD_VH;     // begins sliding up
+  const momentsSlideEndVh   = momentsSlideStartVh + MOMENTS_SLIDE_VH;
   const momentsVideoStartVh = momentsSlideEndVh + MOMENTS_LEAD_VH;
   const momentsVideoEndVh   = momentsVideoStartVh + N_VIDEOS_2 * VIDEO_PER_VH;
   const totalVh             = momentsVideoEndVh + FINAL_HOLD_VH;
@@ -963,6 +954,8 @@
   const chapterVideo  = document.getElementById('chapter-video');
   const continueWrap  = document.getElementById('settle-continue');
   const continueBtn   = continueWrap.querySelector('button');
+  const homePlay      = document.getElementById('home-play');
+  const homePlayBtn   = homePlay.querySelector('button');
   let   _settleSrc    = '';
 
   /* caption lookup — keyed by settlePhoto path */
@@ -1059,6 +1052,7 @@
 
   function updateScene(p) {
     const scrollV = p * totalVh;
+    const isEndCard = p >= endCardAt;  // computed first so carousel playback can be muted at the end
 
     // ── Rocket intro ───────────────────────────────────────
     if (scrollV <= ROCKET_VH) {
@@ -1080,16 +1074,16 @@
     if (scrollV >= momentsCardStartVh) {
       updateVideoPlayback(-1);  // pause events videos
       setOpacity(reliveBox, 0); // events relive card fully gone
-      setOpacity(reliveCue, 0);
 
-      const momA = smooth(momentsCardStartVh, momentsCardStartVh + 40, scrollV);
+      const momA = smooth(momentsCardStartVh, momentsFadeEndVh, scrollV);
       setOpacity(reliveBox2, momA);
 
-      if (scrollV >= momentsCardStartVh + 40) {
-        const momSlideP = smooth(momentsCardStartVh + 40, momentsSlideEndVh, scrollV);
+      if (scrollV >= momentsSlideStartVh) {
+        setOpacity(reliveCue, 0);  // hidden once the clips card slides up
+        const momSlideP = smooth(momentsSlideStartVh, momentsSlideEndVh, scrollV);
         reliveBox2.style.transform = `translateY(${(-momSlideP * _vh).toFixed(1)}px)`;
 
-        const momVidA = smooth(momentsCardStartVh + 40, momentsCardStartVh + 90, scrollV);
+        const momVidA = smooth(momentsSlideStartVh, momentsSlideStartVh + 50, scrollV);
         setOpacity(videoSection2, momVidA);
         videoSection2.style.pointerEvents = momVidA > 0.5 ? 'auto' : 'none';
 
@@ -1099,14 +1093,16 @@
           const gap    = _vw * 0.05;
           videoTrack2.style.transform =
             `translateX(${(-(momP * (N_VIDEOS_2 - 1) * (slotW + gap))).toFixed(1)}px)`;
-          updateMomentsPlayback(Math.round(momP * (N_VIDEOS_2 - 1)));
+          updateMomentsPlayback(isEndCard ? -1 : Math.round(momP * (N_VIDEOS_2 - 1)));
         } else {
-          updateMomentsPlayback(0);
+          updateMomentsPlayback(isEndCard ? -1 : 0);
         }
       } else {
+        // fade-in + centered hold → scroll cue invites the user onward
         reliveBox2.style.transform = 'translateY(0px)';
         setOpacity(videoSection2, 0);
         updateMomentsPlayback(-1);
+        setOpacity(reliveCue, momA);
       }
       hideSettle();
 
@@ -1133,9 +1129,9 @@
           const gap    = _vw * 0.05;
           videoTrack.style.transform =
             `translateX(${(-(videoP * (N_VIDEOS - 1) * (slotW + gap))).toFixed(1)}px)`;
-          updateVideoPlayback(Math.round(videoP * (N_VIDEOS - 1)));
+          updateVideoPlayback(isEndCard ? -1 : Math.round(videoP * (N_VIDEOS - 1)));
         } else {
-          updateVideoPlayback(0);
+          updateVideoPlayback(isEndCard ? -1 : 0);
         }
         hideSettle();
         setOpacity(reliveCue, 0);  // hidden once the relive card slides up
@@ -1156,29 +1152,62 @@
       applySettle(scrollV);
     }
 
-    const isEndCard = p >= endCardAt;
     endCard.classList.toggle('visible', isEndCard);
     if (isEndCard) { updateVideoPlayback(-1); updateMomentsPlayback(-1); }
   }
 
   /* ── Phase-based driver ───────────────────────────────────
-     intro      → scroll-driven rocket (render.v 0…ROCKET_VH)
-     transition → quick rocket fly-off before first video
-     chapters   → autoplaying videos + "Continue" between each
-     carousels  → scroll-driven events + clips reels, then end card
+     intro        → home screen, PLAY button (no scroll)
+     transition   → rocket fly-off / auto holds (locked)
+     launch-settle→ "Let's Lift Off" freeze + Continue
+     chapters     → autoplaying videos + Continue between each
+     carousels    → scroll-driven events reel → Continue gate → clips reel
   ──────────────────────────────────────────────────────────── */
   function initScrollTrigger() {
     const render = { v: 0 };     // virtual scroll position actually drawn
-    let manualTarget = 0;        // wheel-driven destination (scroll phases)
+    let manualTarget = 0;        // wheel-driven destination (carousels)
     let phase = 'intro';
     let ci = 0;                  // current chapter index
     let entering = false;
+    let gatePassed  = false;     // gate 1: events → clips
+    let gate2Passed = false;     // gate 2: clips → finish
+    let activeGate  = 0;         // which Continue gate is currently shown (0/1/2)
+    let lobbyFaded  = false;     // lobby music faded out at the carousels
+    let endAudioOn  = false;     // lobby music restarted at the end card
 
     const MANUAL_EASE   = 0.16;  // higher = snappier scroll response
     const VH_PER_SCROLL = 26;    // vh moved per 100px of deltaY
     const MAX_LOOKAHEAD = 55;    // cap how far the target may lead the render
 
-    const carStartVh = lastSettleStartVh;  // carousels begin here (last settle behind relive card)
+    const carStartVh  = lastSettleStartVh;     // carousels begin here (last settle behind relive card)
+    const eventsEndVh = videoEndVh - 0.5;        // gate 1: end of the events carousel
+    const clipsEndVh  = momentsVideoEndVh - 0.5; // gate 2: end of the clips carousel
+
+    /* ── Audio ──────────────────────────────────────────────── */
+    const lobby = new Audio('./assets/lobby.mp3');
+    lobby.loop = true; lobby.preload = 'auto'; lobby.volume = 0;
+    const SFX_HOVER = './assets/sfx-hover.mp3';
+    const SFX_CLICK = './assets/sfx-click.mp3';
+    [SFX_HOVER, SFX_CLICK].forEach(s => { const a = new Audio(s); a.preload = 'auto'; }); // warm cache
+    // new Audio() per play → each sound is isolated and can overlap
+    function playSfx(src, vol) { const a = new Audio(src); a.volume = vol; a.play().catch(() => {}); }
+    function wireBtn(btn) {
+      if (!btn) return;
+      btn.addEventListener('mouseenter', () => playSfx(SFX_HOVER, 0.68));
+      btn.addEventListener('click',      () => playSfx(SFX_CLICK, 1.0));
+    }
+    function startLobby() {
+      lobbyFaded = false;
+      try { lobby.currentTime = 0; } catch (e) {}
+      lobby.volume = 0;
+      lobby.play().catch(() => {});
+      gsap.to(lobby, { volume: 0.25, duration: 1.0, overwrite: true });
+    }
+    function fadeLobby() {
+      if (lobbyFaded) return;
+      lobbyFaded = true;
+      gsap.to(lobby, { volume: 0, duration: 1.2, overwrite: true, onComplete() { lobby.pause(); } });
+    }
 
     /* Preload the next chapter video so transitions don't stall */
     const vPrefetch = document.createElement('video');
@@ -1190,10 +1219,21 @@
     function showContinue() { setOpacity(continueWrap, 1); continueWrap.style.pointerEvents = 'auto'; }
     function hideContinue() { setOpacity(continueWrap, 0); continueWrap.style.pointerEvents = 'none'; }
 
-    /* Play chapter i's video; the freeze frame + Continue appears when it ends */
+    /* Show a freeze-frame photo, but only reveal it once the image is decoded —
+       prevents a one-frame flash of the video frame behind it. */
+    function revealSettle(src, after) {
+      showSettle(src, 0, true);          // set src + caption, keep hidden for now
+      const show = () => { setOpacity(settleImg, 1); setOpacity(settleBox, 1); if (after) after(); };
+      if (settleImg.decode) settleImg.decode().then(show).catch(show);
+      else show();
+    }
+
+    /* Play chapter i's video (muted — the lobby track is the soundtrack here).
+       The previous freeze frame stays as a cover until the new video's first
+       frame paints, so the old clip's last frame never flashes through. */
     function playChapter(i) {
       ci = i; phase = 'chapters';
-      hideSettle(); hideContinue();
+      hideContinue();
       setOpacity(rStage, 0);
       setOpacity(reliveBox, 0);  setOpacity(videoSection, 0);
       setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
@@ -1201,14 +1241,20 @@
       endCard.classList.remove('visible');
 
       const ch = CHAPTERS[i];
+      setOpacity(chapterVideo, 0);   // hidden until first frame → no stale-frame flash
       if (chapterVideo.dataset.idx !== String(i)) {
         chapterVideo.src = ch.video;
         chapterVideo.dataset.idx = String(i);
       }
-      setOpacity(chapterVideo, 1);
       try { chapterVideo.currentTime = 0; } catch (e) {}
-      chapterVideo.muted = false;
-      chapterVideo.play().catch(() => { chapterVideo.muted = true; chapterVideo.play().catch(() => {}); });
+      chapterVideo.muted = true;
+      chapterVideo.addEventListener('playing', function onPlay() {
+        chapterVideo.removeEventListener('playing', onPlay);
+        if (phase !== 'chapters' || ci !== i) return;
+        setOpacity(chapterVideo, 1);   // reveal the video…
+        hideSettle();                  // …and drop the cover photo together
+      });
+      chapterVideo.play().catch(() => {});
       prefetchChapter(i + 1);
     }
 
@@ -1220,8 +1266,7 @@
       setOpacity(reliveBox, 0);  setOpacity(videoSection, 0);
       setOpacity(reliveBox2, 0); setOpacity(videoSection2, 0);
       endCard.classList.remove('visible');
-      showSettle(SETTLE_LAUNCH, 1, true);
-      showContinue();
+      revealSettle(SETTLE_LAUNCH, showContinue);
     }
 
     /* Video finished → reveal its freeze-frame photo + caption.
@@ -1229,32 +1274,41 @@
        auto-fades into the relive/carousels screen. */
     function onChapterEnded() {
       if (phase !== 'chapters') return;
-      showSettle(CHAPTERS[ci].settlePhoto, 1, true);
-      if (ci < CHAPTERS.length - 1) showContinue();
-      else autoEnterCarousels();
+      const last = ci === CHAPTERS.length - 1;
+      revealSettle(CHAPTERS[ci].settlePhoto, () => {
+        if (phase !== 'chapters') return;
+        if (last) autoEnterCarousels(); else showContinue();
+      });
     }
 
-    /* Continue clicked → first chapter (from launch settle) or next chapter */
-    function advance() {
+    /* Continue button — routes by phase / which gate is showing */
+    function onContinueClick() {
       if (phase === 'launch-settle') { hideContinue(); playChapter(0); return; }
-      if (phase !== 'chapters') return;
-      hideContinue();
-      if (ci < CHAPTERS.length - 1) playChapter(ci + 1);
+      if (phase === 'chapters') {
+        hideContinue();
+        if (ci < CHAPTERS.length - 1) playChapter(ci + 1);
+        return;
+      }
+      if (phase === 'carousels') {
+        if (activeGate === 1) passGate();
+        else if (activeGate === 2) passGate2();
+      }
     }
 
-    /* Rocket fly-off, then the "Let's Lift Off" freeze frame */
+    /* PLAY clicked → rocket fly-off, then the "Let's Lift Off" freeze frame */
     function enterChapters() {
       if (phase !== 'intro' || entering) return;
       entering = true; phase = 'transition';
+      homePlay.style.pointerEvents = 'none';  // home button no longer clickable once launched
       gsap.to(render, {
-        v: ROCKET_VH, duration: 0.45, ease: 'power2.in',
+        v: ROCKET_VH, duration: 1.7, ease: 'power2.in',
         onUpdate() { updateScene(render.v / totalVh); },
         onComplete() { showLaunchSettle(); },
       });
     }
 
-    /* Hold the final freeze frame briefly, then auto-fade in the relive
-       black screen + scroll indicator (user scrolls from there). */
+    /* Hold the final freeze frame briefly, then auto-fade in the events
+       relive screen + scroll indicator (user scrolls from there). */
     function autoEnterCarousels() {
       phase = 'transition';            // locked: ignore wheel during the hold
       hideContinue();
@@ -1263,51 +1317,90 @@
         chapterVideo.pause(); setOpacity(chapterVideo, 0);
         render.v = carStartVh; manualTarget = carStartVh;
         updateScene(render.v / totalVh);
-        // auto-reveal the relive card by easing the scroll target forward a touch
         const t = { v: carStartVh };
         gsap.to(t, { v: carStartVh + 42, duration: 0.9, ease: 'power2.out',
           onUpdate() { manualTarget = t.v; } });
       });
     }
 
+    /* Gate 1 — events carousel → clips relive screen */
+    function passGate() {
+      if (gatePassed) return;
+      gatePassed = true; activeGate = 0;
+      hideContinue();
+      const t = { v: render.v };
+      gsap.to(t, { v: momentsFadeEndVh, duration: 0.9, ease: 'power2.out',
+        onUpdate() { manualTarget = t.v; } });
+    }
+
+    /* Gate 2 — clips carousel → finish (end card) */
+    function passGate2() {
+      if (gate2Passed) return;
+      gate2Passed = true; activeGate = 0;
+      hideContinue();
+      const t = { v: render.v };
+      gsap.to(t, { v: totalVh, duration: 1.0, ease: 'power2.out',
+        onUpdate() { manualTarget = t.v; } });
+    }
+
     function reset() {
+      lobby.pause(); lobbyFaded = false; endAudioOn = false;
+      gatePassed = false; gate2Passed = false; activeGate = 0;
       phase = 'intro'; ci = 0; entering = false;
       render.v = 0; manualTarget = 0;
       chapterVideo.pause(); setOpacity(chapterVideo, 0);
       hideSettle(); hideContinue();
       endCard.classList.remove('visible');
       updateVideoPlayback(-1); updateMomentsPlayback(-1);
-      updateScene(0);
+      homePlay.style.pointerEvents = 'auto';  // PLAY clickable again on the home screen
+      updateScene(0);   // restores the home screen (rocket + PLAY button)
     }
 
+    /* ── Wiring ─────────────────────────────────────────────── */
+    homePlayBtn.addEventListener('click', () => {
+      if (phase !== 'intro') return;
+      startLobby();        // user gesture → music allowed with sound
+      enterChapters();
+    });
     chapterVideo.addEventListener('ended', onChapterEnded);
-    continueBtn.addEventListener('click', advance);
+    continueBtn.addEventListener('click', onContinueClick);
     const restartBtn = document.getElementById('restart-btn');
     if (restartBtn) restartBtn.addEventListener('click', reset);
+    [homePlayBtn, continueBtn, restartBtn, document.getElementById('end-copy-btn')].forEach(wireBtn);
 
     window.addEventListener('wheel', (e) => {
-      if (phase !== 'intro' && phase !== 'carousels') return;  // locked during videos / freeze frames
+      if (phase !== 'carousels') return;  // only the carousels respond to scroll
       let dy = e.deltaY;
       if (e.deltaMode === 1) dy *= 16;     // lines → px
       if (e.deltaMode === 2) dy *= _vh;    // pages → px
       const delta = (dy / 100) * VH_PER_SCROLL;
-
-      if (phase === 'intro') {
-        manualTarget = clamp(manualTarget + delta, 0, ROCKET_VH);
-        manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
-        if (delta > 0 && manualTarget >= ROCKET_VH - 0.5) enterChapters();
-      } else { // carousels
-        manualTarget = clamp(manualTarget + delta, carStartVh, totalVh);
-        manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
-      }
+      const maxV  = !gatePassed ? eventsEndVh : (!gate2Passed ? clipsEndVh : totalVh);
+      manualTarget = clamp(manualTarget + delta, carStartVh, maxV);
+      manualTarget = clamp(manualTarget, render.v - MAX_LOOKAHEAD, render.v + MAX_LOOKAHEAD);
     }, { passive: true });
 
     gsap.ticker.add(() => {
-      if (phase === 'intro' || phase === 'carousels') {
-        render.v += (manualTarget - render.v) * MANUAL_EASE;
-        updateScene(clamp(render.v / totalVh, 0, 1));
+      if (phase !== 'carousels') return;
+      render.v += (manualTarget - render.v) * MANUAL_EASE;
+      updateScene(clamp(render.v / totalVh, 0, 1));
+
+      // Continue gates: 1 = end of events carousel, 2 = end of clips carousel
+      const want = (!gatePassed  && render.v >= eventsEndVh - 3) ? 1
+                 : (gatePassed && !gate2Passed && render.v >= clipsEndVh - 3) ? 2
+                 : 0;
+      if (want !== activeGate) {
+        activeGate = want;
+        if (want) showContinue(); else hideContinue();
       }
+
+      // lobby music fades out as the events carousel reveals
+      if (!lobbyFaded && render.v >= holdStartVh) fadeLobby();
+
+      // audio plays again at the end card
+      if (!endAudioOn && (render.v / totalVh) >= endCardAt) { endAudioOn = true; startLobby(); }
     });
+
+    updateScene(0);  // draw the initial home screen
   }
 
   /* ── Init ────────────────────────────────────────────────── */
