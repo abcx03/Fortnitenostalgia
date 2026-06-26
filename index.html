@@ -1059,10 +1059,14 @@
   // preload="metadata" causes the browser to allocate all decoders at parse time,
   // starving the early videos. Fix: on mobile, strip every src at startup so no
   // decoder is reserved. _playAt restores src lazily and releases it on pause.
+  // iOS caps simultaneous media decoders (~4 per page). Strip every carousel src at startup
+  // so no decoder is reserved until the video is actually scrolled to. _playAt restores and
+  // releases via removeAttribute so we never accidentally match the page URL in the getter.
   if (isMobile) {
     [...videoEls, ...videoEls2].forEach(v => {
       v.dataset.origSrc = v.getAttribute('src') || '';
-      v.src = ''; v.load();
+      v.removeAttribute('src');
+      v.load();
     });
   }
 
@@ -1072,8 +1076,8 @@
     els.forEach((v, i) => {
       if (i === idx) {
         if (isMobile) {
-          // Restore src lazily — it was cleared at startup to free the decoder slot
-          if (!v.src && v.dataset.origSrc) { v.src = v.dataset.origSrc; }
+          // Restore src if it was cleared (getAttribute returns null when absent, unlike .src getter)
+          if (!v.getAttribute('src') && v.dataset.origSrc) { v.setAttribute('src', v.dataset.origSrc); }
           v.muted = true;
           v.play().catch(() => {});
         } else {
@@ -1083,7 +1087,7 @@
       } else {
         v.pause();
         // Release the decoder slot so the next video can acquire one
-        if (isMobile && v.src) { v.src = ''; v.load(); }
+        if (isMobile && v.getAttribute('src')) { v.removeAttribute('src'); v.load(); }
       }
     });
   }
@@ -1219,10 +1223,10 @@
     let lobbyFaded  = false;     // lobby music faded out at the carousels
     let endAudioOn  = false;     // lobby music restarted at the end card
 
-    const MANUAL_EASE   = 0.16;  // higher = snappier scroll response
-    const VH_PER_SCROLL = 26;    // vh moved per 100px of deltaY
-    const MAX_LOOKAHEAD = 55;    // cap how far the target may lead the render
-    const TOUCH_GAIN    = isMobile ? 2.4 : 1.3;  // mobile gets more sensitivity per-drag-pixel
+    const MANUAL_EASE   = 0.16;
+    const VH_PER_SCROLL = 26;
+    const MAX_LOOKAHEAD = isMobile ? 110 : 55;   // wider lookahead on mobile = faster swipes
+    const TOUCH_GAIN    = isMobile ? 4.8 : 1.3;  // ~2× the previous mobile value
 
     const carStartVh  = lastSettleStartVh;     // carousels begin here (last settle behind relive card)
     const eventsEndVh = videoEndVh - 0.5;        // gate 1: end of the events carousel
@@ -1233,14 +1237,34 @@
     lobby.loop = true; lobby.preload = 'auto'; lobby.volume = 0;
     const SFX_HOVER = './assets/sfx-hover.mp3';
     const SFX_CLICK = './assets/sfx-click.mp3';
-    [SFX_HOVER, SFX_CLICK].forEach(s => { const a = new Audio(s); a.preload = 'auto'; }); // warm cache
-    // new Audio() per play → each sound is isolated and can overlap
-    function playSfx(src, vol) { const a = new Audio(src); a.volume = vol; a.play().catch(() => {}); }
-    const canHover = window.matchMedia('(hover: hover)').matches;  // false on touch → no double sound on tap
+    // Web Audio API: allows gain > 1.0 (new Audio() hard-caps at 1.0)
+    let _sfxCtx = null;
+    const _sfxBufs = new Map();
+    function _getSfxCtx() {
+      if (!_sfxCtx) { try { _sfxCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+      if (_sfxCtx && _sfxCtx.state === 'suspended') _sfxCtx.resume().catch(() => {});
+      return _sfxCtx;
+    }
+    function _loadSfx(src) {
+      if (_sfxBufs.has(src)) return _sfxBufs.get(src);
+      const p = fetch(src).then(r => r.arrayBuffer()).then(ab => _getSfxCtx().decodeAudioData(ab));
+      _sfxBufs.set(src, p); return p;
+    }
+    function playSfx(src, vol) {
+      const ctx = _getSfxCtx();
+      if (!ctx) { const a = new Audio(src); a.volume = Math.min(vol, 1); a.play().catch(() => {}); return; }
+      _loadSfx(src).then(buf => {
+        const s = ctx.createBufferSource(), g = ctx.createGain();
+        s.buffer = buf; g.gain.value = vol;
+        s.connect(g); g.connect(ctx.destination); s.start();
+      }).catch(() => {});
+    }
+    [SFX_HOVER, SFX_CLICK].forEach(s => { const a = new Audio(s); a.preload = 'auto'; }); // warm HTTP cache
+    const canHover = window.matchMedia('(hover: hover)').matches;
     function wireBtn(btn) {
       if (!btn) return;
-      if (canHover) btn.addEventListener('mouseenter', () => playSfx(SFX_HOVER, 0.68));
-      btn.addEventListener('click', () => playSfx(SFX_CLICK, 1.0));
+      if (canHover) btn.addEventListener('mouseenter', () => playSfx(SFX_HOVER, 1.4));
+      btn.addEventListener('click', () => playSfx(SFX_CLICK, 2.0));
     }
     function startLobby() {
       lobbyFaded = false;
