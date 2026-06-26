@@ -1055,13 +1055,25 @@
   let _activeVid  = -1;
   let _activeVid2 = -1;
 
+  // iOS caps simultaneous media decoders (~4 per page). With 14 carousel videos,
+  // preload="metadata" causes the browser to allocate all decoders at parse time,
+  // starving the early videos. Fix: on mobile, strip every src at startup so no
+  // decoder is reserved. _playAt restores src lazily and releases it on pause.
+  if (isMobile) {
+    [...videoEls, ...videoEls2].forEach(v => {
+      v.dataset.origSrc = v.getAttribute('src') || '';
+      v.src = ''; v.load();
+    });
+  }
+
   function _playAt(els, activeRef, idx, setActive) {
     if (idx === activeRef) return;
     setActive(idx);
     els.forEach((v, i) => {
       if (i === idx) {
         if (isMobile) {
-          // Mobile: always muted — iOS requires muted attribute for inline autoplay outside a gesture
+          // Restore src lazily — it was cleared at startup to free the decoder slot
+          if (!v.src && v.dataset.origSrc) { v.src = v.dataset.origSrc; }
           v.muted = true;
           v.play().catch(() => {});
         } else {
@@ -1070,6 +1082,8 @@
         }
       } else {
         v.pause();
+        // Release the decoder slot so the next video can acquire one
+        if (isMobile && v.src) { v.src = ''; v.load(); }
       }
     });
   }
