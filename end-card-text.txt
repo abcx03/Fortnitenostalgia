@@ -1,13 +1,1 @@
-<!-- ═══════════════════════════════════════════════════════
-     END CARD COPY — paste your final text between the quotes
-     in index.html at the line:
-         <input id="end-copy-input" ... value="YOUR TEXT HERE">
-     ═══════════════════════════════════════════════════════ -->
-
-[PLACEHOLDER — add your text here]
-
-Examples of what could go here:
-- A mint link / contract address
-- A social handle or URL
-- A call-to-action phrase
-- A token ticker / description
+Relive the best moments from Fortnite Chapter 1 - fortnitenostalgia.fun
